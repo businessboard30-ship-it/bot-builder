@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import importlib
+import io
 import json
+import logging
 import re
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 import discord
 from discord.ui import Button, Modal, TextInput, View
 
-from core.token_encryption import encrypt_token
+from core.generator import generate_package, module_schema_hash
+from core.token_encryption import decrypt_token, encrypt_token
 from wizard.session_store import complete_session, get_active_session, update_session
 
 MODULES = {
@@ -17,6 +23,11 @@ MODULES = {
     "economy": "Balances and daily rewards",
 }
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_\-.]{40,120}$")
+
+
+def safe_filename(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip(".-")
+    return cleaned.lower() or "discord-bot"
 
 
 def answers(row: dict[str, Any]) -> dict[str, Any]:
@@ -82,9 +93,54 @@ class WizardView(View):
         await self.edit(interaction, "**Step 9 of 9 — Review**\n" + summary(data), 9, data)
 
     async def confirm(self, interaction):
-        row = await self.row(); data = answers(row)
-        await complete_session(self.bot.db, self.user_id)
-        await interaction.response.edit_message(content="Configuration saved. Bot generation will be connected in Prompt 3.", view=None)
+        row = await self.row()
+        if not row:
+            return await interaction.response.send_message("This wizard session expired. Run /build again.", ephemeral=True)
+        data = answers(row)
+        encrypted_token = data.get("encrypted_token")
+        encryption_key = getattr(self.bot.config, "encryption_key", None)
+        if not encrypted_token or not encryption_key:
+            return await interaction.response.send_message("I could not find the saved token encryption key. Please restart the build and try again.", ephemeral=True)
+        try:
+            decrypted_token = decrypt_token(encrypted_token, encryption_key)
+            package_bytes = generate_package(data, decrypted_token)
+            modules = data.get("modules", [])
+            module_versions = {
+                module: getattr(importlib.import_module(f"modules.{module}"), "MODULE_VERSION", "unknown")
+                for module in modules
+            }
+            module_schema_hashes = {
+                module: module_schema_hash(module)
+                for module in modules
+            }
+            await self.bot.db.execute(
+                """
+                INSERT INTO user_bots(user_id, bot_name, modules_enabled, encrypted_token,
+                                      currency_name, prefix, module_versions, module_schema_hashes)
+                VALUES($1, $2, $3::jsonb, $4, $5, $6, $7::jsonb, $8::jsonb)
+                """.strip(),
+                self.user_id,
+                data.get("bot_name", "discord-bot"),
+                json.dumps(modules),
+                encrypted_token,
+                data.get("currency_name", "coins"),
+                data.get("prefix", "!"),
+                json.dumps(module_versions),
+                json.dumps(module_schema_hashes),
+            )
+            await complete_session(self.bot.db, self.user_id)
+            package = discord.File(io.BytesIO(package_bytes), filename=f"{safe_filename(data.get('bot_name', 'discord-bot'))}.zip")
+            await interaction.response.edit_message(
+                content="Your bot package is ready. Download the ZIP and follow the README for the next steps.",
+                attachments=[package],
+                view=None,
+            )
+        except Exception:
+            log.exception("Bot package generation failed for user %s", self.user_id)
+            if not interaction.response.is_done():
+                await interaction.response.send_message("I could not generate your bot package. Please check your answers and try again.", ephemeral=True)
+            else:
+                await interaction.followup.send("I could not generate your bot package. Please try /build again.", ephemeral=True)
 
 
 class ActionButton(Button):
