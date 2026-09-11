@@ -12,5 +12,4 @@ __v0_jsx-dev-runtime.ts
 # Common ignores
 node_modules
 .next/
-.DS_Store__pycache__/ 
-*.pyc 
+.DS_Store

@@ -56,6 +56,16 @@ def build_selected_schema(modules: list[str]) -> str:
     return "\n".join(lines)
 
 
+def build_requirements(modules: list[str]) -> str:
+    """Return only dependencies needed by the generated bot runtime."""
+    requirements = [
+        "discord.py==2.4.0",  # bot.py, core/base_cog.py, and selected modules import discord.py
+        "asyncpg==0.29.0",  # core/database.py uses asyncpg
+        "python-dotenv==1.0.1",  # bot.py imports dotenv.load_dotenv
+    ]
+    return "\n".join(requirements) + "\n"
+
+
 def build_env_example(data: dict[str, Any]) -> str:
     """Generate .env.example with required variables for selected modules."""
     modules = data.get("modules", [])
@@ -250,7 +260,10 @@ def generate_package(data: dict[str, Any], decrypted_token: str) -> bytes:
         # 4. Bundle the selected modules so bot.py never falls back to unbundled defaults.
         zf.writestr("modules_enabled.json", json.dumps({"modules": modules}, indent=2) + "\n")
 
-        # 5. Add selected schema only + shared tables (never include wizard_sessions.sql or user_bots.sql)
+        # 5. Bundle only dependencies used by the generated bot runtime.
+        zf.writestr("requirements.txt", build_requirements(modules))
+
+        # 6. Add selected schema only + shared tables (never include wizard_sessions.sql or user_bots.sql)
         schema = build_selected_schema(modules)
         zf.writestr("schema.sql", schema)
         
