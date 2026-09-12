@@ -51,7 +51,7 @@ class BotBuilder(commands.Bot):
         await self.wait_until_ready()
 
     async def setup_hook(self):
-        self.db = await create_pool(self.config.database_url)
+        self.db = await create_pool(self.config.database_url, self.config.bot_id)
         self.add_dynamic_items(ManageBotButton, ModuleToggle, PaymentReviewButton)
         self.session_expiry_loop.start()
         for extension in ("commands.build", "commands.mybots", "commands.payment_review"):
@@ -71,10 +71,22 @@ class BotBuilder(commands.Bot):
             self.add_view(ModuleView(self, row["user_id"]))
         await self.tree.sync()
 
+    async def on_guild_join(self, guild: discord.Guild):
+        log.info("Joined guild: %s (%s)", guild.name, guild.id)
+        for admin_id in self.config.admin_user_ids:
+            try:
+                user = await self.fetch_user(admin_id)
+                await user.send(
+                    f"✅ Added to a new server:\n**{guild.name}**\nServer ID: `{guild.id}`\nMembers: {guild.member_count}"
+                )
+            except (discord.Forbidden, discord.HTTPException):
+                log.warning("Could not DM admin %s about new guild join", admin_id)
+
     async def close(self):
         if not self.session_expiry_loop.is_being_cancelled():
             self.session_expiry_loop.cancel()
-        await close_pool(self.db)
+        if self.db is not None:
+            await close_pool(self.db)
         await super().close()
 
 
