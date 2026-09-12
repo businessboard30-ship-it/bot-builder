@@ -76,7 +76,7 @@ class PaymentReview(commands.Cog):
                     "status='active', last_regenerated_at=NOW() WHERE bot_id=$1::uuid",
                     row["bot_id"], json.dumps([
                         "leveling", "welcome", "moderation", "economy", "reaction_roles", "starboard",
-                        "ticket", "giveaways", "schedule", "analytics", "voice_xp", "autopost", "automod", "help",
+                        "ticket", "giveaways", "schedule", "analytics", "voice_xp", "autopost", "automod",
                     ]),
                 )
                 if updated != "UPDATE 1":
