@@ -12,6 +12,8 @@ from pathlib import Path
 
 import asyncpg
 
+from core.migrate import run_migrations
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("bot-supervisor")
 LOCK_PATH = Path(os.getenv("SUPERVISOR_LOCK_PATH", "/tmp/prime-bot-supervisor.lock"))
@@ -59,6 +61,7 @@ async def run() -> None:
 
     cleanup_orphans()
     database_url = os.environ["DATABASE_URL"]
+    await run_migrations(database_url)
     pool = await asyncpg.create_pool(database_url, min_size=1, max_size=3)
     managed: dict[str, ManagedBot] = {}
     retry_at: dict[str, float] = {}
