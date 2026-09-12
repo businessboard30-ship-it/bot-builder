@@ -11,6 +11,8 @@ from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 from core.config import Config
+from core.command_reference import render_help
+from core.components_v2 import panel
 from core.database import Database, create_pool
 from core.token_encryption import decrypt_token
 from modules.welcome import WelcomeChannelSelect
@@ -19,6 +21,17 @@ from modules.reaction_roles import ReactionRoleButton
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("generated-bot")
+
+
+def _first_postable_channel(guild: discord.Guild) -> discord.TextChannel | None:
+    candidates: list[discord.TextChannel] = []
+    if guild.system_channel:
+        candidates.append(guild.system_channel)
+    candidates.extend(channel for channel in guild.text_channels if channel not in candidates)
+    for channel in candidates:
+        if channel.permissions_for(guild.me).send_messages:
+            return channel
+    return None
 
 
 def enabled_modules() -> list[str]:
@@ -63,6 +76,18 @@ class GeneratedBot(commands.Bot):
                 log.exception("Could not load module: %s", module)
         await self.tree.sync()
         self.heartbeat_loop.start()
+
+    async def on_guild_join(self, guild: discord.Guild):
+        log.info("Joined guild: %s (%s)", guild.name, guild.id)
+        channel = _first_postable_channel(guild)
+        if not channel:
+            log.warning("No postable channel found in guild %s; skipping command list post", guild.id)
+            return
+        body = render_help(self.enabled_module_names) + "\n\nUse `/help` any time to see this again."
+        try:
+            await channel.send(view=panel(f"{self.config.bot_name} is here!", body))
+        except discord.HTTPException:
+            log.warning("Could not post command list in guild %s", guild.id)
 
     @tasks.loop(seconds=30)
     async def heartbeat_loop(self):
