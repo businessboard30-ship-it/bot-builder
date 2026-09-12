@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 
 from core.config import Config
 from core.database import Database, close_pool, create_pool
+from core.migrate import run_migrations
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("bot-builder")
@@ -80,6 +81,7 @@ class BotBuilder(commands.Bot):
 async def main():
     load_dotenv()
     config = Config.from_env()
+    await run_migrations(config.database_url)
     bot = BotBuilder(config)
 
     @bot.event
