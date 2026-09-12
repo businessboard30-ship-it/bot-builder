@@ -1,11 +1,7 @@
--- Leveling module schema
-CREATE TABLE IF NOT EXISTS user_levels (
+-- Leveling module per-guild settings (level-up announcement channel)
+CREATE TABLE IF NOT EXISTS leveling_settings (
   bot_id UUID NOT NULL REFERENCES user_bots(bot_id),
   guild_id BIGINT NOT NULL,
-  user_id BIGINT NOT NULL,
-  xp INTEGER NOT NULL DEFAULT 0,
-  level INTEGER NOT NULL DEFAULT 0,
-  last_xp_gain TIMESTAMPTZ,
-  PRIMARY KEY (bot_id, guild_id, user_id)
+  announce_channel_id BIGINT,
+  PRIMARY KEY (bot_id, guild_id)
 );
-ALTER TABLE user_levels ADD COLUMN IF NOT EXISTS bot_id UUID REFERENCES user_bots(bot_id);
