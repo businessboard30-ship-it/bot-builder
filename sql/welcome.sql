@@ -7,3 +7,4 @@ CREATE TABLE IF NOT EXISTS welcome_settings (
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   PRIMARY KEY (bot_id, guild_id)
 );
+ALTER TABLE welcome_settings ADD COLUMN IF NOT EXISTS bot_id UUID REFERENCES user_bots(bot_id);
