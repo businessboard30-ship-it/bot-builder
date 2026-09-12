@@ -15,3 +15,5 @@ CREATE TABLE IF NOT EXISTS user_bots (
 );
 CREATE INDEX IF NOT EXISTS user_bots_user_idx ON user_bots(user_id);
 CREATE INDEX IF NOT EXISTS user_bots_created_idx ON user_bots(user_id, created_at);
+ALTER TABLE user_bots ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE user_bots ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMPTZ;
