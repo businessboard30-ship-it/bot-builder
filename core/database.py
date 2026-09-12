@@ -32,3 +32,7 @@ class Database:
 async def create_pool(database_url: str, bot_id: str) -> Database:
     pool = await asyncpg.create_pool(database_url, min_size=1, max_size=5, command_timeout=15)
     return Database(pool, bot_id)
+
+
+async def close_pool(db: Database) -> None:
+    await db.close()
