@@ -7,3 +7,4 @@ CREATE TABLE IF NOT EXISTS user_economy (
   last_daily_claim TIMESTAMPTZ,
   PRIMARY KEY (bot_id, guild_id, user_id)
 );
+ALTER TABLE user_economy ADD COLUMN IF NOT EXISTS bot_id UUID REFERENCES user_bots(bot_id);
