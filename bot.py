@@ -29,7 +29,10 @@ def enabled_modules() -> list[str]:
     path = Path("modules_enabled.json")
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8")).get("modules", [])
-    return ["leveling", "welcome", "moderation", "economy"]
+    # The main builder bot's BOT_ID is never a row in user_bots, so it must never
+    # load user-facing feature modules (their queries carry a bot_id FK and would
+    # fail). Those modules only belong on generated_bot.py.
+    return []
 
 
 class BotBuilder(commands.Bot):
