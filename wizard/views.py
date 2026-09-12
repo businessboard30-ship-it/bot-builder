@@ -108,7 +108,7 @@ class SupportServerModal(Modal, title="Support server"):
     def __init__(self, bot, user_id): super().__init__(); self.bot, self.user_id = bot, user_id
     async def on_submit(self, interaction):
         value = str(self.support_url.value or "").strip()
-        if value and not re.fullmatch(r"https://(discord\\.gg|discord\\.com/invite)/[A-Za-z0-9-]+", value):
+        if value and not re.fullmatch(r"https://(discord\.gg|discord\.com/invite)/[A-Za-z0-9-]+", value):
             return await interaction.response.send_message("Use a Discord invite URL or leave it blank.", ephemeral=True)
         row, values = await session_or_error(interaction, self.bot)
         if values is None: return
