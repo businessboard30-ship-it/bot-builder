@@ -15,11 +15,23 @@ from commands.payment_review import PaymentReviewButton
 from dotenv import load_dotenv
 
 from core.config import Config
+from core.components_v2 import panel
 from core.database import Database, close_pool, create_pool
 from core.migrate import run_migrations
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("bot-builder")
+
+
+def _first_postable_channel(guild: discord.Guild) -> discord.TextChannel | None:
+    candidates: list[discord.TextChannel] = []
+    if guild.system_channel:
+        candidates.append(guild.system_channel)
+    candidates.extend(channel for channel in guild.text_channels if channel not in candidates)
+    for channel in candidates:
+        if channel.permissions_for(guild.me).send_messages:
+            return channel
+    return None
 
 
 def enabled_modules() -> list[str]:
@@ -84,6 +96,20 @@ class BotBuilder(commands.Bot):
                 )
             except (discord.Forbidden, discord.HTTPException):
                 log.warning("Could not DM admin %s about new guild join", admin_id)
+
+        channel = _first_postable_channel(guild)
+        if not channel:
+            log.warning("No postable channel found in guild %s; skipping command list post", guild.id)
+            return
+        body = (
+            "`/build` — Build a new hosted Discord bot, or run `/build update` to check for module updates.\n"
+            "`/mybots` — List and manage the bots you've built (toggle modules, see status).\n\n"
+            "Use `/build` to get started."
+        )
+        try:
+            await channel.send(view=panel("Bot Builder is here!", body))
+        except discord.HTTPException:
+            log.warning("Could not post command list in guild %s", guild.id)
 
     async def close(self):
         if not self.session_expiry_loop.is_being_cancelled():
