@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS voice_xp (bot_id UUID NOT NULL REFERENCES user_bots(bot_id), guild_id BIGINT NOT NULL, user_id BIGINT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bot_id,guild_id,user_id));

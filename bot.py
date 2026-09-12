@@ -9,7 +9,9 @@ import discord
 from discord.ext import commands, tasks
 
 from wizard import session_store
-from wizard.views import WizardView
+from wizard.views import ModuleView
+from commands.mybots import ManageBotButton, ModuleToggle
+from commands.payment_review import PaymentReviewButton
 from dotenv import load_dotenv
 
 from core.config import Config
@@ -49,8 +51,9 @@ class BotBuilder(commands.Bot):
 
     async def setup_hook(self):
         self.db = await create_pool(self.config.database_url)
+        self.add_dynamic_items(ManageBotButton, ModuleToggle, PaymentReviewButton)
         self.session_expiry_loop.start()
-        for extension in ("commands.build", "commands.mybots"):
+        for extension in ("commands.build", "commands.mybots", "commands.payment_review"):
             try:
                 await self.load_extension(extension)
                 log.info("Loaded extension: %s", extension)
@@ -63,8 +66,8 @@ class BotBuilder(commands.Bot):
             except Exception:
                 log.exception("Could not load module: %s; continuing", module)
         # Re-register persistent wizard views so stable custom_ids survive a restart.
-        for row in await self.db.fetch("SELECT user_id, current_step FROM wizard_sessions WHERE status='active'"):
-            self.add_view(WizardView(self, row["user_id"], row["current_step"]))
+        for row in await self.db.fetch("SELECT user_id FROM wizard_sessions WHERE status='active'"):
+            self.add_view(ModuleView(self, row["user_id"]))
         await self.tree.sync()
 
     async def close(self):

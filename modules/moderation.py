@@ -33,12 +33,12 @@ class Moderation(BaseCog):
     @app_commands.command(name="warn", description="Warn a member")
     @app_commands.checks.has_permissions(moderate_members=True)
     async def warn(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
-        await self.db.execute("INSERT INTO mod_warnings(guild_id,user_id,moderator_id,reason,timestamp) VALUES($1,$2,$3,$4,$5)", interaction.guild_id, member.id, interaction.user.id, reason, datetime.now(timezone.utc))
+        await self.db.execute("INSERT INTO mod_warnings(bot_id,guild_id,user_id,moderator_id,reason,timestamp) VALUES($1::uuid,$2,$3,$4,$5,$6)", self.config.bot_id, interaction.guild_id, member.id, interaction.user.id, reason, datetime.now(timezone.utc))
         await interaction.response.send_message(f"Warned {member.mention}: {reason}")
 
     @app_commands.command(name="warnings", description="View a member's warnings")
     async def warnings(self, interaction: discord.Interaction, member: discord.Member):
-        rows = await self.db.fetch("SELECT reason,timestamp FROM mod_warnings WHERE guild_id=$1 AND user_id=$2 ORDER BY timestamp DESC", interaction.guild_id, member.id)
+        rows = await self.db.fetch("SELECT reason,timestamp FROM mod_warnings WHERE bot_id=$1::uuid AND guild_id=$2 AND user_id=$3 ORDER BY timestamp DESC", self.config.bot_id, interaction.guild_id, member.id)
         await interaction.response.send_message("\n".join(f"{r['timestamp']:%Y-%m-%d}: {r['reason']}" for r in rows) or "No warnings found.")
 
 async def setup(bot):

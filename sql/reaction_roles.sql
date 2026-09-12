@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS reaction_roles (bot_id UUID NOT NULL REFERENCES user_bots(bot_id), guild_id BIGINT NOT NULL, message_id BIGINT NOT NULL, emoji TEXT NOT NULL, role_id BIGINT NOT NULL, PRIMARY KEY (bot_id,guild_id,message_id,emoji));

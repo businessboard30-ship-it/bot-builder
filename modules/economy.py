@@ -16,24 +16,24 @@ class Economy(BaseCog):
         return getattr(self.config, "currency_name", "coins")
 
     async def ensure(self, guild_id, user_id):
-        await self.db.execute("INSERT INTO user_economy(guild_id,user_id,balance) VALUES($1,$2,0) ON CONFLICT DO NOTHING", guild_id, user_id)
+        await self.db.execute("INSERT INTO user_economy(bot_id,guild_id,user_id,balance) VALUES($1::uuid,$2,$3,0) ON CONFLICT DO NOTHING", self.config.bot_id, guild_id, user_id)
 
     @app_commands.command(name="balance", description="Show a member's balance")
     async def balance(self, interaction: discord.Interaction, member: discord.Member | None = None):
         member = member or interaction.user
         await self.ensure(interaction.guild_id, member.id)
-        row = await self.db.fetchrow("SELECT balance FROM user_economy WHERE guild_id=$1 AND user_id=$2", interaction.guild_id, member.id)
+        row = await self.db.fetchrow("SELECT balance FROM user_economy WHERE bot_id=$1::uuid AND guild_id=$2 AND user_id=$3", self.config.bot_id, interaction.guild_id, member.id)
         await interaction.response.send_message(f"{member.display_name} has {row['balance']} {self.currency_name}.")
 
     @app_commands.command(name="daily", description="Claim daily currency")
     async def daily(self, interaction: discord.Interaction):
         await self.ensure(interaction.guild_id, interaction.user.id)
-        row = await self.db.fetchrow("SELECT last_daily_claim FROM user_economy WHERE guild_id=$1 AND user_id=$2", interaction.guild_id, interaction.user.id)
+        row = await self.db.fetchrow("SELECT last_daily_claim FROM user_economy WHERE bot_id=$1::uuid AND guild_id=$2 AND user_id=$3", self.config.bot_id, interaction.guild_id, interaction.user.id)
         now = datetime.now(timezone.utc)
         if row["last_daily_claim"] and now - row["last_daily_claim"] < timedelta(days=1):
             await interaction.response.send_message("You already claimed your daily reward.", ephemeral=True)
             return
-        await self.db.execute("UPDATE user_economy SET balance=balance+100,last_daily_claim=$3 WHERE guild_id=$1 AND user_id=$2", interaction.guild_id, interaction.user.id, now)
+        await self.db.execute("UPDATE user_economy SET balance=balance+100,last_daily_claim=$4 WHERE bot_id=$1::uuid AND guild_id=$2 AND user_id=$3", self.config.bot_id, interaction.guild_id, interaction.user.id, now)
         await interaction.response.send_message(f"You received 100 {self.currency_name}.")
 
     @app_commands.command(name="pay", description="Pay another member")
@@ -43,11 +43,11 @@ class Economy(BaseCog):
             return
         await self.ensure(interaction.guild_id, interaction.user.id)
         await self.ensure(interaction.guild_id, member.id)
-        result = await self.db.fetchrow("UPDATE user_economy SET balance=balance-$3 WHERE guild_id=$1 AND user_id=$2 AND balance >= $3 RETURNING balance", interaction.guild_id, interaction.user.id, amount)
+        result = await self.db.fetchrow("UPDATE user_economy SET balance=balance-$4 WHERE bot_id=$1::uuid AND guild_id=$2 AND user_id=$3 AND balance >= $4 RETURNING balance", self.config.bot_id, interaction.guild_id, interaction.user.id, amount)
         if not result:
             await interaction.response.send_message("You do not have enough currency.", ephemeral=True)
             return
-        await self.db.execute("UPDATE user_economy SET balance=balance+$3 WHERE guild_id=$1 AND user_id=$2", interaction.guild_id, member.id, amount)
+        await self.db.execute("UPDATE user_economy SET balance=balance+$4 WHERE bot_id=$1::uuid AND guild_id=$2 AND user_id=$3", self.config.bot_id, interaction.guild_id, member.id, amount)
         await interaction.response.send_message(f"Paid {member.mention} {amount} {self.currency_name}.")
 
 async def setup(bot):

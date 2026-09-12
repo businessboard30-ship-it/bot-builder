@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS starboard_settings (bot_id UUID NOT NULL REFERENCES user_bots(bot_id), guild_id BIGINT NOT NULL, channel_id BIGINT NOT NULL, threshold INTEGER NOT NULL DEFAULT 3, PRIMARY KEY (bot_id,guild_id));
+CREATE TABLE IF NOT EXISTS starboard_posts (bot_id UUID NOT NULL REFERENCES user_bots(bot_id), guild_id BIGINT NOT NULL, original_message_id BIGINT NOT NULL, starboard_message_id BIGINT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (bot_id, original_message_id));

@@ -8,27 +8,28 @@ from dataclasses import dataclass
 class Config:
     discord_bot_token: str
     database_url: str
-    prefix: str = "!"
-    bot_name: str = "Bot Builder"
-    currency_name: str = "coins"
-    encryption_key: str | None = None
+    bot_id: str
+    bot_name: str
+    prefix: str
+    currency_name: str
+    support_server_url: str | None
+    admin_review_channel_id: int | None
+    admin_user_ids: frozenset[int]
 
     @classmethod
     def from_env(cls) -> "Config":
-        missing = [name for name in ("DISCORD_BOT_TOKEN", "DATABASE_URL") if not os.getenv(name)]
+        required = ("DISCORD_BOT_TOKEN", "DATABASE_URL", "BOT_ID")
+        missing = [name for name in required if not os.getenv(name)]
         if missing:
-            details = ", ".join(missing)
-            raise ValueError(
-                f"Missing {details}. Check your Railway/Fly.io environment variables tab and add them before starting the bot."
-            )
+            raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
         return cls(
             discord_bot_token=os.environ["DISCORD_BOT_TOKEN"],
             database_url=os.environ["DATABASE_URL"],
+            bot_id=os.environ["BOT_ID"],
+            bot_name=os.getenv("BOT_NAME", "Generated Bot"),
             prefix=os.getenv("PREFIX", "!"),
-            bot_name=os.getenv("BOT_NAME", "Bot Builder"),
             currency_name=os.getenv("CURRENCY_NAME", "coins"),
-            encryption_key=os.getenv("ENCRYPTION_KEY"),
+            support_server_url=os.getenv("SUPPORT_SERVER_URL") or None,
+            admin_review_channel_id=int(os.environ["ADMIN_REVIEW_CHANNEL_ID"]) if os.getenv("ADMIN_REVIEW_CHANNEL_ID") else None,
+            admin_user_ids=frozenset(int(value) for value in os.getenv("ADMIN_USER_IDS", "").split(",") if value.strip()),
         )
-
-
-__all__ = ["Config"]
